@@ -225,20 +225,13 @@ impl<S: Unpin> Stream for TungWebSocket<S> where S: AsyncRead + AsyncWrite + Sen
 				{
 					TungMessage::Binary(vec) => Some(Ok( vec )).into(),
 
-
-					TungMessage::Text(_) =>
+					TungMessage::Text(s) =>
 					{
-						self.queue_event( WsEvent::Error(Arc::new( WsErr::ReceivedText )) );
-
-						let string = "Text messages are not supported.";
-
-						// If this returns pending, we don't want to recurse, the task will be woken up.
-						//
-						ready!( self.as_mut().send_closeframe( CloseCode::Unsupported, string.into(), cx ) );
-
-						// Continue to drive the event and the close handshake before returning.
-						//
-						self.poll_next( cx )
+						let len = s.len();
+						let mut res: Vec<u8> = vec![];
+						res.append(&mut len.to_ne_bytes().to_vec());
+						res.append(&mut s.as_bytes().to_vec());
+						Poll::Ready(Some(Ok(res)))
 					}
 
 
